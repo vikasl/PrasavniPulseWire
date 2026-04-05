@@ -248,6 +248,16 @@ export default function App() {
                   />
                 </View>
 
+                <View style={styles.debugBar}>
+                  <Text style={styles.debugText}>Category: {activeCategory}</Text>
+                  <Text style={styles.debugDivider}>|</Text>
+                  <Text style={styles.debugText}>Stories: {articles.length}</Text>
+                  <Text style={styles.debugDivider}>|</Text>
+                  <Text style={styles.debugText} numberOfLines={1}>
+                    {sourceLabel}
+                  </Text>
+                </View>
+
                 {(activeTab === 'home' || activeTab === 'discover') && (
                   <ScrollView
                     horizontal
@@ -483,6 +493,30 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     color: palette.text,
     fontSize: 16,
+  },
+  debugBar: {
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 252, 248, 0.58)',
+    borderWidth: 1,
+    borderColor: palette.cardBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  debugText: {
+    color: palette.secondaryText,
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 1,
+    textTransform: 'capitalize',
+  },
+  debugDivider: {
+    color: palette.muted,
+    fontSize: 12,
   },
   categoryRail: {
     paddingHorizontal: spacing.lg,

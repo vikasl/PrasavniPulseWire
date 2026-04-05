@@ -13,10 +13,18 @@ type NewsResponse = {
   articles?: Article[];
 };
 
+type BulkNewsResponse = {
+  sourceLabel?: string;
+  provider?: string;
+  categories?: Partial<Record<NewsCategory, NewsResponse>>;
+};
+
 const FALLBACK_SOURCE_LABEL = 'Local fallback feed';
 const mode = (process.env.EXPO_PUBLIC_NEWS_API_MODE || 'spaceflight').toLowerCase();
 const apiKey = process.env.EXPO_PUBLIC_NEWS_API_KEY;
 const explicitApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+const bulkCategoryCache = new Map<NewsCategory, Article[]>();
+let bulkSourceLabelCache: string | undefined;
 const providerCategoryMap = {
   gnews: {
     general: 'general',
@@ -179,6 +187,16 @@ async function fetchFromBackend(category: NewsCategory): Promise<NewsResponse> {
   return fetchJson<NewsResponse>(`${apiBaseUrl}/news?category=${encodeURIComponent(category)}`);
 }
 
+async function fetchAllFromBackend(): Promise<BulkNewsResponse> {
+  const apiBaseUrl = getApiBaseUrl();
+
+  if (!apiBaseUrl) {
+    throw new Error('Backend API base URL is not configured.');
+  }
+
+  return fetchJson<BulkNewsResponse>(`${apiBaseUrl}/news/all`);
+}
+
 async function fetchDirect(category: NewsCategory): Promise<NewsResponse> {
   if (mode === 'gnews' && apiKey) {
     const payload = await fetchJson<any>(buildDirectGNewsUrl(category));
@@ -216,6 +234,23 @@ function getFallbackArticles(category: NewsCategory) {
   return filteredArticles.length > 0 ? filteredArticles : mockArticles;
 }
 
+function hydrateBulkCache(payload: BulkNewsResponse) {
+  if (!payload.categories) {
+    return;
+  }
+
+  for (const [category, feed] of Object.entries(payload.categories)) {
+    const key = category as NewsCategory;
+    bulkCategoryCache.set(key, feed?.articles || getFallbackArticles(key));
+  }
+
+  bulkSourceLabelCache = payload.sourceLabel || 'Live via backend API';
+}
+
+export function getCachedCategoryArticles(category: NewsCategory) {
+  return bulkCategoryCache.get(category);
+}
+
 export async function fetchTopHeadlines(category: NewsCategory): Promise<{
   articles: Article[];
   sourceLabel: string;
@@ -228,6 +263,23 @@ export async function fetchTopHeadlines(category: NewsCategory): Promise<{
   }
 
   try {
+    if (bulkCategoryCache.has(category) && bulkSourceLabelCache) {
+      return {
+        articles: bulkCategoryCache.get(category) || getFallbackArticles(category),
+        sourceLabel: bulkSourceLabelCache,
+      };
+    }
+
+    const bulkResponse = await fetchAllFromBackend();
+    hydrateBulkCache(bulkResponse);
+
+    if (bulkCategoryCache.has(category)) {
+      return {
+        articles: bulkCategoryCache.get(category) || getFallbackArticles(category),
+        sourceLabel: bulkSourceLabelCache || 'Live via backend API',
+      };
+    }
+
     const backendResponse = await fetchFromBackend(category);
     return {
       articles: backendResponse.articles || getFallbackArticles(category),

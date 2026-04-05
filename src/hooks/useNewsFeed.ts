@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchTopHeadlines } from '../services/newsApi';
+import { fetchTopHeadlines, getCachedCategoryArticles } from '../services/newsApi';
 import { Article, NewsCategory } from '../types/news';
 
 export function useNewsFeed(initialCategory: NewsCategory) {
@@ -28,6 +28,14 @@ export function useNewsFeed(initialCategory: NewsCategory) {
 
   useEffect(() => {
     load(activeCategory);
+  }, [activeCategory]);
+
+  useEffect(() => {
+    const cachedArticles = getCachedCategoryArticles(activeCategory);
+    if (cachedArticles && cachedArticles.length > 0) {
+      setArticles(cachedArticles);
+      setIsLoading(false);
+    }
   }, [activeCategory]);
 
   return {

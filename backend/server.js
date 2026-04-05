@@ -287,6 +287,16 @@ function setCachedArticles(category, articles) {
   });
 }
 
+function buildNewsPayload(category, articles) {
+  return {
+    sourceLabel: getProviderLabel(),
+    provider:
+      (provider === 'gnews' || provider === 'thenewsapi') && newsApiKey ? provider : 'spaceflight',
+    category,
+    articles,
+  };
+}
+
 async function getArticles(category) {
   const cached = getCachedArticles(category);
   if (cached) {
@@ -351,12 +361,22 @@ app.get('/api/news', async (request, response) => {
   const category = normalizeCategory(String(request.query.category || 'general'), 'general');
   const articles = await getArticles(category);
 
+  response.json(buildNewsPayload(category, articles));
+});
+
+app.get('/api/news/all', async (_request, response) => {
+  const results = await Promise.all(
+    categoryList.map(async (category) => {
+      const articles = await getArticles(category);
+      return [category, buildNewsPayload(category, articles)];
+    }),
+  );
+
   response.json({
     sourceLabel: getProviderLabel(),
     provider:
       (provider === 'gnews' || provider === 'thenewsapi') && newsApiKey ? provider : 'spaceflight',
-    category,
-    articles,
+    categories: Object.fromEntries(results),
   });
 });
 
