@@ -1,0 +1,26 @@
+{
+  "name": "PulseWire News",
+  "short_name": "PulseWire",
+  "description": "A premium mobile-first news reader powered by your self-hosted Synology backend.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f1ea",
+  "theme_color": "#b45309",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
+

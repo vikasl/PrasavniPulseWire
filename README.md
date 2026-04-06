@@ -125,6 +125,26 @@ cd C:\Research\Codex
 npm run export:web
 ```
 
+## Install As A PWA
+
+The hosted web app is now PWA-ready.
+
+On iPhone:
+
+1. Open the site in Safari
+2. Tap Share
+3. Tap Add to Home Screen
+
+On Android:
+
+1. Open the site in Chrome
+2. Use Install app or Add to Home Screen
+
+Important:
+
+- for the best install experience on phones, serve the site over HTTPS
+- service workers and full PWA behavior are limited on plain HTTP except for localhost
+
 ## Synology deployment
 
 Copy this project to your Synology NAS, then from the project root run:
@@ -148,6 +168,151 @@ Routes:
   backend news endpoint
 
 If you want the web app and API on one public URL, keep the provided nginx config as-is. It proxies `/api/*` from the web container to the backend container.
+
+## Synology image tar workflow
+
+If you do not want to build on Synology, you can transfer prebuilt Docker image tar files and load them there.
+
+Generated image artifacts from this workspace:
+
+- `pulsewire-backend-synology-amd64.tar`
+- `pulsewire-web-synology-amd64.tar`
+
+Recommended temporary working folder on Synology:
+
+```bash
+mkdir -p ~/pulsewire
+cd ~/pulsewire
+```
+
+Copy the tar files there from your desktop, then load them:
+
+```bash
+docker load -i ~/pulsewire/pulsewire-backend-synology-amd64.tar
+docker load -i ~/pulsewire/pulsewire-web-synology-amd64.tar
+```
+
+## Synology backend container only
+
+Create `~/pulsewire/backend.env`:
+
+```env
+PORT=4000
+NEWS_PROVIDER=gnews
+NEWS_API_KEY=your_gnews_api_key_here
+ALLOWED_ORIGINS=*
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX=120
+CACHE_TTL_MS=300000
+REQUEST_TIMEOUT_MS=8000
+TRUST_PROXY=1
+LOG_LEVEL=info
+```
+
+Run the backend:
+
+```bash
+docker run -d \
+  --name pulsewire-backend \
+  --restart unless-stopped \
+  --env-file ~/pulsewire/backend.env \
+  -p 4000:4000 \
+  pulsewire-backend:synology-amd64
+```
+
+## Synology backend + web containers without docker compose
+
+Create a shared Docker network:
+
+```bash
+docker network create pulsewire-net
+```
+
+Run backend with the hostname `backend` so the web container can resolve it:
+
+```bash
+docker run -d \
+  --name pulsewire-backend \
+  --hostname backend \
+  --network pulsewire-net \
+  --restart unless-stopped \
+  --env-file ~/pulsewire/backend.env \
+  -p 4000:4000 \
+  pulsewire-backend:synology-amd64
+```
+
+Run web:
+
+```bash
+docker run -d \
+  --name pulsewire-web \
+  --restart unless-stopped \
+  --network pulsewire-net \
+  -p 8080:80 \
+  pulsewire-web:synology-amd64
+```
+
+Then open:
+
+```bash
+http://YOUR_SYNOLOGY_IP:8080
+```
+
+Important:
+
+- the web container expects the backend hostname to be `backend`
+- if you omit `--hostname backend`, nginx will fail with `host not found in upstream "backend"`
+
+## Synology troubleshooting
+
+Check running containers:
+
+```bash
+docker ps -a
+```
+
+Check backend logs:
+
+```bash
+docker logs pulsewire-backend
+```
+
+Check web logs:
+
+```bash
+docker logs pulsewire-web
+```
+
+Common issue:
+
+- `host not found in upstream "backend"`
+  This means the web container cannot resolve the backend hostname. Recreate the backend container with:
+
+```bash
+docker stop pulsewire-backend
+docker rm pulsewire-backend
+docker run -d \
+  --name pulsewire-backend \
+  --hostname backend \
+  --network pulsewire-net \
+  --restart unless-stopped \
+  --env-file ~/pulsewire/backend.env \
+  -p 4000:4000 \
+  pulsewire-backend:synology-amd64
+```
+
+Then recreate the web container:
+
+```bash
+docker stop pulsewire-web
+docker rm pulsewire-web
+docker run -d \
+  --name pulsewire-web \
+  --restart unless-stopped \
+  --network pulsewire-net \
+  -p 8080:80 \
+  pulsewire-web:synology-amd64
+```
 
 ## Production hardening
 
@@ -220,6 +385,18 @@ Then restart Expo with:
 ```bash
 npm start
 ```
+
+## Phone access without desktop
+
+If you do not want to run anything on your desktop, use the hosted web app on Synology:
+
+```bash
+http://YOUR_SYNOLOGY_IP:8080
+```
+
+For iPhone and Android, this web app can be installed as a PWA from the browser.
+
+If you want to use Expo Go on your phone instead, you still need a running Expo development server somewhere. The Synology backend alone is not enough for Expo Go.
 
 ## Notes
 
